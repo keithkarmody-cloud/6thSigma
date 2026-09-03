@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIXTH SIGMA SOLUTIONS // Mission Control Agency</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            nasa: {
+              bg: '#07090e',
+              panel: '#0d111a',
+              panelBorder: '#1e293b',
+              accent: '#00f0ff', // Cyan telemetry
+              amber: '#ffb000',  // Warning amber
+              green: '#00ff66',  // Systems go
+              red: '#ff2a5f',    // Alert red
+              muted: '#64748b'
+            }
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', '"Share Tech Mono"', 'monospace'],
+            sans: ['"Space Grotesk"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Space+Grotesk:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Technical Grid Overlay & Scanlines */
+    body {
+      background-color: #07090e;
+      color: #e2e8f0;
+      background-image: 
+        radial-gradient(rgba(0, 240, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 32px 32px, 64px 64px, 64px 64px;
+      overflow-x: hidden;
+    }
+
+    .scanline {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0, 0, 0, 0.25) 50%,
+        rgba(0, 0, 0, 0.25)
+      );
+      background-size: 100% 4px;
+      z-index: 99;
+      opacity: 0.6;
+    }
+
+    /* CRT Glow Effects */
+    .glow-cyan {
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6), 0 0 16px rgba(0, 240, 255, 0.3);
+    }
+    .glow-amber {
+      text-shadow: 0 0 8px rgba(255, 176, 0, 0.6);
+    }
+    .glow-green {
+      text-shadow: 0 0 8px rgba(0, 255, 102, 0.6);
+    }
+    .box-glow {
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.05);
+    }
+
+    /* Corner Target Marks */
+    .tech-corner {
+      position: relative;
+    }
+    .tech-corner::before {
+      content: '+';
+      position: absolute;
+      top: -6px; left: -6px;
+      color: #00f0ff;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .tech-corner::after {
+      content: '+';
+      position: absolute;
+      top: -6px; right: -6px;
+      color: #00f0ff;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #07090e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border: 1px solid #00f0ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="scanline"></div>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- Main Groom Lake Test Facility Control App Component ---
+    function App() {
+      const [activeTab, setActiveTab] = useState('overview');
+      const [utcTime, setUtcTime] = useState('');
+      const [defcon, setDefcon] = useState('LEVEL 1 // NOMINAL');
+
+      // UTC Clock
+      useEffect(() => {
+        const updateClock = () => {
+          const now = new Date();
+          const iso = now.toISOString().replace('T', ' // ').replace('Z', ' UTC');
+          setUtcTime(iso);
+        };
+        updateClock();
+        const interval = setInterval(updateClock, 1000);
+        return () => clearInterval(interval);
+      }, []);
+
+      const handleTabChange = (tab) => {
+        setActiveTab(tab);
+      };
+
+      return (
+        <div class="min-h-screen flex flex-col font-sans selection:bg-nasa-accent selection:text-black">
+          
+          {/* TOP MISSION CONTROL HEADER */}
+          <header class="bg-nasa-panel border-b border-nasa-panelBorder sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+            <div class="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between text-xs font-mono">
+              
+              {/* Brand Telemetry Ident */}
+              <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 bg-nasa-green rounded-full animate-ping"></div>
+                <div class="flex flex-col">
+                  <span class="text-nasa-accent font-bold tracking-widest text-sm flex items-center gap-1">
+                    <span>SSS-GLTF</span>
+                    <span class="text-white">//</span>
+                    <span class="text-gray-300">SIXTH SIGMA SOLUTIONS</span>
+                  </span>
+                  <span class="text-[10px] text-gray-400">FLIGHT DIRECTOR MATRIX v4.8</span>
+                </div>
+              </div>
+
+              {/* Real-time Status Readouts */}
+              <div class="hidden md:flex items-center space-x-6">
+                <div class="bg-black/50 px-3 py-1 border border-nasa-panelBorder rounded flex items-center gap-2">
+                  <span class="text-gray-400">SYS_STATUS:</span>
+                  <span class="text-nasa-green font-bold glow-green">{defcon}</span>
+                </div>
+                <div class="bg-black/50 px-3 py-1 border border-nasa-panelBorder rounded flex items-center gap-2">
+                  <span class="text-gray-400">TIME:</span>
+                  <span class="text-nasa-accent glow-cyan">{utcTime}</span>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div class="flex items-center space-x-3">
+                <button 
+                  onClick={() => handleTabChange('uplink')}
+                  class="bg-nasa-accent text-black font-bold px-3 py-1 rounded hover:bg-cyan-300 transition-all font-mono text-[11px] tracking-wider"
+                >
+                  INITIATE UPLINK
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-Navigation Bar */}
+            <div class="bg-black/60 border-t border-nasa-panelBorder px-4 py-1.5 overflow-x-auto">
+              <div class="max-w-7xl mx-auto flex space-x-1 font-mono text-xs">
+                {[
+                  { id: 'overview', label: '01. MISSION OVERVIEW' },
+                  { id: 'services', label: '02. SERVICE MODULES' },
+                  { id: 'simulator', label: '03. LAUNCH SIMULATOR' },
+                  { id: 'ai-director', label: '04. GEMINI FLIGHT DIRECTOR' },
+                  { id: 'missions', label: '05. ACTIVE DOSSIERS' },
+                  { id: 'events', label: '06. EVENT COMMAND' },
+                  { id: 'uplink', label: '07. TRANSMIT BRIEF' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleTabChange(item.id)}
+                    class={`px-3 py-1 rounded transition-colors whitespace-nowrap text-[11px] font-medium ${
+                      activeTab === item.id
+                        ? 'bg-nasa-accent/20 text-nasa-accent border border-nasa-accent/60 glow-cyan'
+                        : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          {/* MAIN CONTENT TELEMETRY AREA */}
+          <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 space-y-8">
+            {activeTab === 'overview' && <OverviewModule onNavigate={handleTabChange} />}
+            {activeTab === 'services' && <ServicesModule onSelectService={(s) => handleTabChange('simulator')} />}
+            {activeTab === 'simulator' && <LaunchSimulatorModule />}
+            {activeTab === 'ai-director' && <AiDirectorModule />}
+            {activeTab === 'missions' && <MissionsModule />}
+            {activeTab === 'events' && <EventCommandModule />}
+            {activeTab === 'uplink' && <UplinkModule />}
+          </main>
+
+          {/* FOOTER SYSTEM STATUS */}
+          <footer class="bg-nasa-panel border-t border-nasa-panelBorder py-6 mt-12 font-mono text-xs text-gray-500">
+            <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div class="flex items-center space-x-4">
+                <span class="text-nasa-accent font-bold">SIXTH SIGMA SOLUTIONS © 2026</span>
+                <span>//</span>
+                <span>GROOM LAKE TEST FACILITY INTERFACE</span>
+              </div>
+              <div class="flex space-x-6 text-[11px]">
+                <span>LATENCY: 12ms</span>
+                <span>ENCRYPTION: 256-BIT AES</span>
+                <span class="text-nasa-green">ORBITAL REGISTRY: VERIFIED</span>
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    // --- MODULE 01: OVERVIEW & RADAR SWEEP ---
+    function OverviewModule({ onNavigate }) {
+      const canvasRef = useRef(null);
+
+      // Radar Sweep Animation
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let angle = 0;
+        let animationFrameId;
+
+        // Mock Satellite Brands
+        const satellites = [
+          { x: 120, y: 80, label: 'Astraea Inc', status: 'IN ORBIT' },
+          { x: 220, y: 190, label: 'Hyperion AI', status: 'STAGE 2' },
+          { x: 80, y: 200, label: 'Apex Summit 2026', status: 'IGNITION' },
+          { x: 260, y: 90, label: 'Nebula Pay', status: 'PAYLOAD DEPLOYED' }
+        ];
+
+        const render = () => {
+          const width = canvas.width;
+          const height = canvas.height;
+          const cX = width / 2;
+          const cY = height / 2;
+          const radius = Math.min(cX, cY) - 10;
+
+          ctx.clearRect(0, 0, width, height);
+
+          // Grid Circles
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 1;
+          for (let r = 40; r <= radius; r += 40) {
+            ctx.beginPath();
+            ctx.arc(cX, cY, r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Crosshairs
+          ctx.beginPath();
+          ctx.moveTo(cX, 0); ctx.lineTo(cX, height);
+          ctx.moveTo(0, cY); ctx.lineTo(width, cY);
+          ctx.stroke();
+
+          // Radar Line
+          ctx.save();
+          ctx.translate(cX, cY);
+          ctx.rotate(angle);
+          const gradient = ctx.createConicGradient(0, 0, 0);
+          gradient.addColorStop(0, 'rgba(0, 240, 255, 0.4)');
+          gradient.addColorStop(0.1, 'rgba(0, 240, 255, 0.0)');
+          gradient.addColorStop(1, 'rgba(0, 240, 255, 0)');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(0, 0, radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(radius, 0);
+          ctx.stroke();
+          ctx.restore();
+
+          // Render Satellites
+          satellites.forEach(sat => {
+            ctx.fillStyle = '#00ff66';
+            ctx.beginPath();
+            ctx.arc(sat.x, sat.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#a0aec0';
+            ctx.font = '9px "JetBrains Mono"';
+            ctx.fillText(`${sat.label} [${sat.status}]`, sat.x + 8, sat.y + 3);
+          });
+
+          angle += 0.02;
+          animationFrameId = requestAnimationFrame(render);
+        };
+
+        render();
+        return () => cancelAnimationFrame(animationFrameId);
+      }, []);
+
+      return (
+        <div class="space-y-6">
+          {/* HERO DISPLAY PANEL */}
+          <div class="bg-nasa-panel border border-nasa-panelBorder rounded-lg p-6 relative overflow-hidden box-glow tech-corner">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              <div class="lg:col-span-7 space-y-5">
+                <div class="inline-flex items-center space-x-2 bg-nasa-accent/10 border border-nasa-accent/30 text-nasa-accent px-3 py-1 rounded-full text-xs font-mono">
+                  <span class="w-2 h-2 rounded-full bg-nasa-accent animate-pulse"></span>
+                  <span>SIXTH SIGMA SOLUTIONS // CREATIVE MISSION CONTROL</span>
+                </div>
+
+                <h1 class="text-3xl md:text-5xl font-extrabold font-sans text-white tracking-tight leading-tight">
+                  WE LAUNCH HIGH-GROWTH <span class="text-transparent bg-clip-text bg-gradient-to-r from-nasa-accent via-cyan-200 to-nasa-green glow-cyan">BRANDS INTO ORBIT.</span>
+                </h1>
+
+                <p class="text-gray-300 text-sm md:text-base font-mono leading-relaxed">
+                  Precision Graphic Design, Strategic Telemetry Marketing, Identity DNA Sequencing, and Experiential Event Command for category-defining organizations.
+                </p>
+
+                <div class="flex flex-wrap gap-4 pt-2 font-mono text-xs">
+                  <button 
+                    onClick={() => onNavigate('simulator')}
+                    class="bg-nasa-accent text-black font-bold px-5 py-3 rounded hover:bg-cyan-300 transition-all flex items-center gap-2 glow-cyan"
+                  >
+                    <i data-lucide="rocket" class="w-4 h-4"></i>
+                    <span>SIMULATE BRAND LAUNCH</span>
+                  </button>
+
+                  <button 
+                    onClick={() => onNavigate('ai-director')}
+                    class="bg-black/60 border border-nasa-accent/50 text-nasa-accent font-bold px-5 py-3 rounded hover:bg-nasa-accent/10 transition-all flex items-center gap-2"
+                  >
+                    <i data-lucide="cpu" class="w-4 h-4"></i>
+                    <span>CONSULT AI FLIGHT DIRECTOR</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* RADAR VISUALIZER CANVAS */}
+              <div class="lg:col-span-5 flex flex-col items-center justify-center bg-black/40 p-4 border border-nasa-panelBorder rounded-md">
+                <div class="w-full flex justify-between items-center mb-2 font-mono text-[11px] text-nasa-accent">
+                  <span>ORBITAL_RADAR_SWEEP.SYS</span>
+                  <span class="text-nasa-green">LIVE TRACKING</span>
+                </div>
+                <canvas 
+                  ref={canvasRef} 
+                  width={320} 
+                  height={260} 
+                  class="rounded bg-black/80 border border-slate-800"
+                ></canvas>
+                <div class="w-full grid grid-cols-2 gap-2 mt-3 font-mono text-[10px] text-gray-400">
+                  <div class="bg-black/40 p-1.5 border border-slate-800 rounded">
+                    ACTIVE SATELLITES: <span class="text-white font-bold">148</span>
+                  </div>
+                  <div class="bg-black/40 p-1.5 border border-slate-800 rounded">
+                    MEAN ROI VELOCITY: <span class="text-nasa-green font-bold">+340%</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* TELEMETRY STATS GRID */}
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono">
+            {[
+              { label: 'SUCCESSFUL LAUNCHES', val: '184', unit: 'BRANDS', color: 'text-nasa-accent' },
+              { label: 'MARKET REACH', val: '42.8M+', unit: 'IMPRESSIONS', color: 'text-nasa-green' },
+              { label: 'EVENTS COMMANDED', val: '96', unit: 'KEYNOTES', color: 'text-nasa-amber' },
+              { label: 'ORBITAL SURVIVAL RATE', val: '99.4%', unit: 'RETENTION', color: 'text-cyan-300' },
+            ].map((stat, idx) => (
+              <div key={idx} class="bg-nasa-panel border border-nasa-panelBorder p-4 rounded hover:border-nasa-accent/40 transition-colors">
+                <div class="text-[10px] text-gray-400 mb-1">{stat.label}</div>
+                <div class={`text-2xl md:text-3xl font-extrabold ${stat.color}`}>{stat.val}</div>
+                <div class="text-[9px] text-gray-500 mt-1">{stat.unit}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* CAPABILITY QUICK MATRIX */}
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 font-mono">
+            <div class="bg-nasa-panel border border-nasa-panelBorder p-5 rounded space-y-3 hover:border-nasa-accent/30 transition-all">
+              <div class="text-nasa-accent flex items-center gap-2 text-sm font-bold">
+                <i data-lucide="palette" class="w-4 h-4"></i>
+                <span>MODULE 01: BRAND DNA & DESIGN</span>
+              </div>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Vector propulsion identity systems, full typography architecture, motion design telemetry, and comprehensive brand guidelines.
+              </p>
+              <button onClick={() => onNavigate('services')} class="text-[11px] text-nasa-accent underline hover:text-white">View Design Specs →</button>
+            </div>
+
+            <div class="bg-nasa-panel border border-nasa-panelBorder p-5 rounded space-y-3 hover:border-nasa-accent/30 transition-all">
+              <div class="text-nasa-green flex items-center gap-2 text-sm font-bold">
+                <i data-lucide="trending-up" class="w-4 h-4"></i>
+                <span>MODULE 02: TELEMETRY MARKETING</span>
+              </div>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Data-driven growth trajectory mapping, paid signal intercept campaigns, conversion funnel optimization, and audience retention tracking.
+              </p>
+              <button onClick={() => onNavigate('services')} class="text-[11px] text-nasa-green underline hover:text-white">View Marketing Specs →</button>
+            </div>
+
+            <div class="bg-nasa-panel border border-nasa-panelBorder p-5 rounded space-y-3 hover:border-nasa-accent/30 transition-all">
+              <div class="text-nasa-amber flex items-center gap-2 text-sm font-bold">
+                <i data-lucide="radio" class="w-4 h-4"></i>
+                <span>MODULE 03: EVENT GROUND CONTROL</span>
+              </div>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Physical keynote staging, virtual flight operations, VIP brand launch summits, audio/visual control center engineering.
+              </p>
+              <button onClick={() => onNavigate('events')} class="text-[11px] text-nasa-amber underline hover:text-white">Explore Event Command →</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- MODULE 02: SERVICES MATRIX ---
+    function ServicesModule({ onSelectService }) {
+      const services = [
+        {
+          id: 'design',
+          code: 'MOD-01',
+          title: 'GRAPHIC DESIGN & IDENTITY DNA',
+          tag: 'VISUAL PROPULSION',
+          color: 'border-nasa-accent text-nasa-accent',
+          desc: 'Complete visual architecture engineered for high-visibility market positioning.',
+          deliverables: [
+            'Vector Logo Architecture & DNA Systems',
+            'Typography & Color Telemetry Standards',
+            '3D Product Packaging & Physical Hardware Design',
+            'High-Speed UI/UX Web Interface Engineering',
+            'Motion Design & Animated Video Assets'
+          ]
+        },
+        {
+          id: 'marketing',
+          code: 'MOD-02',
+          title: 'TACTICAL GROWTH MARKETING',
+          tag: 'TRAJECTORY BOOST',
+          color: 'border-nasa-green text-nasa-green',
+          desc: 'Precision targeted digital campaigns designed to capture market orbit.',
+          deliverables: [
+            'Multi-Channel Signal Intercept Ad Campaigns',
+            'SEO & Orbital Search Authority Engineering',
+            'Content Marketing & Technical Whitepaper Strategy',
+            'High-Conversion Funnel Telemetry Analytics',
+            'Community & Social Orbital Satellites'
+          ]
+        },
+        {
+          id: 'branding',
+          code: 'MOD-03',
+          title: 'ZERO-G BRAND POSITIONING',
+          tag: 'STRATEGIC DNA',
+          color: 'border-nasa-amber text-nasa-amber',
+          desc: 'Category creation and strategic positioning to escape competitive gravity.',
+          deliverables: [
+            'Brand Narrative & Mission Directives',
+            'Competitive Horizon Radar Audits',
+            'Tone of Voice & Messaging Architecture',
+            'Executive Media & Press Briefing Kits',
+            'Brand Valuation Telemetry Diagnostics'
+          ]
+        },
+        {
+          id: 'events',
+          code: 'MOD-04',
+          title: 'EVENT HOSTING & GROUND CONTROL',
+          tag: 'EXPERIENTIAL STAGING',
+          color: 'border-cyan-400 text-cyan-400',
+          desc: 'Full-scale physical & digital experience staging for product launches & summits.',
+          deliverables: [
+            'Interactive Mission Control Stage Design',
+            'Live Audio/Visual Stream Flight Command',
+            'VIP Guest Uplink & Registration Telemetry',
+            'Immersive Spatial & Lighting Engineering',
+            'Post-Event Trajectory Metric Reports'
+          ]
+        }
+      ];
+
+      return (
+        <div class="space-y-6 font-mono">
+          <div class="border-b border-nasa-panelBorder pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                <i data-lucide="layers" class="w-6 h-6 text-nasa-accent"></i>
+                <span>SERVICE MODULE SPECIFICATIONS</span>
+              </h2>
+              <p class="text-xs text-gray-400 mt-1">SELECT A MODULE TO DEPLOY INTO YOUR BRAND MISSION</p>
+            </div>
+            <div class="text-xs bg-black/50 px-3 py-1 border border-nasa-panelBorder rounded text-nasa-accent">
+              AVAILABLE CAPACITY: 100% NOMINAL
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {services.map((s) => (
+              <div key={s.id} class={`bg-nasa-panel border ${s.color.split(' ')[0]} p-6 rounded relative flex flex-col justify-between hover:bg-black/40 transition-all`}>
+                <div class="space-y-4">
+                  <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <span class="text-xs font-bold px-2 py-0.5 rounded bg-black/60 border border-slate-700">{s.code}</span>
+                    <span class={`text-[11px] font-bold ${s.color.split(' ')[1]}`}>{s.tag}</span>
+                  </div>
+
+                  <h3 class="text-lg font-bold text-white">{s.title}</h3>
+                  <p class="text-xs text-gray-300 leading-relaxed">{s.desc}</p>
+
+                  <div class="space-y-2 pt-2">
+                    <div class="text-[11px] text-gray-400 font-bold">CORE DELIVERABLE SPECIFICATIONS:</div>
+                    <ul class="space-y-1.5">
+                      {s.deliverables.map((item, idx) => (
+                        <li key={idx} class="text-xs text-gray-300 flex items-center gap-2">
+                          <span class="text-nasa-accent">▸</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="pt-6 mt-4 border-t border-slate-800 flex justify-between items-center">
+                  <span class="text-[10px] text-gray-500">READY FOR DEPLOYMENT</span>
+                  <button 
+                    onClick={() => onSelectService(s.id)}
+                    class="bg-nasa-accent/10 border border-nasa-accent text-nasa-accent hover:bg-nasa-accent hover:text-black font-bold px-4 py-2 rounded text-xs transition-all flex items-center gap-2"
+                  >
+                    <span>CONFIGURE LAUNCH</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // --- MODULE 03: BRAND LAUNCH SIMULATOR ---
+    function LaunchSimulatorModule() {
+      const [payload, setPayload] = useState('full-rebrand');
+      const [sector, setSector] = useState('tech-ai');
+      const [budget, setBudget] = useState('50k-100k');
+      const [simulating, setSimulating] = useState(false);
+      const [countdown, setCountdown] = useState(5);
+      const [simResult, setSimResult] = useState(null);
+
+      const runSimulation = () => {
+        setSimulating(true);
+        setSimResult(null);
+        setCountdown(5);
+
+        let count = 5;
+        const interval = setInterval(() => {
+          count--;
+          setCountdown(count);
+
+          if (count === 0) {
+            clearInterval(interval);
+            setSimulating(false);
+            setSimResult({
+              velocity: '+420% Market Reach Orbit',
+              trajectory: 'STABLE HIGH-GROWTH ESCAPE VELOCITY',
+              fuelConsumption: 'OPTIMAL ROI YIELD',
+              launchTimeline: '6 to 8 WEEKS T-MINUS',
+              recommendedModules: ['MOD-01 Graphic DNA', 'MOD-02 Telemetry Marketing', 'MOD-04 Launch Keynote']
+            });
+          }
+        }, 800);
+      };
+
+      return (
+        <div class="space-y-6 font-mono">
+          <div class="border-b border-nasa-panelBorder pb-4">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="gauge" class="w-6 h-6 text-nasa-amber"></i>
+              <span>BRAND LAUNCH SIMULATOR // TELEMETRY DIAGNOSTICS</span>
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">TEST LAUNCH PARAMETERS AND CALCULATE EXPECTED ORBITAL VELOCITY</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* PARAMETER CONFIGURATOR */}
+            <div class="lg:col-span-6 bg-nasa-panel border border-nasa-panelBorder p-6 rounded space-y-5 tech-corner">
+              <div class="text-xs font-bold text-nasa-accent border-b border-slate-800 pb-2 flex justify-between">
+                <span>[INPUT LAUNCH PARAMETERS]</span>
+                <span>SYSTEM: READY</span>
+              </div>
+
+              {/* Payload Selection */}
+              <div class="space-y-2">
+                <label class="text-xs text-gray-300 font-bold block">1. MISSION PAYLOAD TYPE</label>
+                <select 
+                  value={payload} 
+                  onChange={(e) => setPayload(e.target.value)}
+                  class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none"
+                >
+                  <option value="full-rebrand">FULL BRAND DNA + REBRAND LAUNCH</option>
+                  <option value="product-launch">NEW PRODUCT ZERO-G DEPLOYMENT</option>
+                  <option value="marketing-blitz">GLOBAL MARKETING TELEMETRY BLITZ</option>
+                  <option value="event-summit">HIGH-STAKES EVENT / KEYNOTE COMMAND</option>
+                </select>
+              </div>
+
+              {/* Target Sector */}
+              <div class="space-y-2">
+                <label class="text-xs text-gray-300 font-bold block">2. TARGET SECTOR ORBIT</label>
+                <select 
+                  value={sector} 
+                  onChange={(e) => setSector(e.target.value)}
+                  class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none"
+                >
+                  <option value="tech-ai">ARTIFICIAL INTELLIGENCE & ENTERPRISE TECH</option>
+                  <option value="fintech-web3">FINTECH, WEB3 & DECENTRALIZED PROTOCOLS</option>
+                  <option value="consumer-luxury">LUXURY CONSUMER & HARDWARE DESIGN</option>
+                  <option value="healthcare-bio">BIOTECH & ADVANCED LIFE SCIENCES</option>
+                </select>
+              </div>
+
+              {/* Budget Payload */}
+              <div class="space-y-2">
+                <label class="text-xs text-gray-300 font-bold block">3. BUDGET FUEL PAYLOAD</label>
+                <select 
+                  value={budget} 
+                  onChange={(e) => setBudget(e.target.value)}
+                  class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none"
+                >
+                  <option value="25k-50k">$25,000 - $50,000 (LIGHT LAUNCH)</option>
+                  <option value="50k-100k">$50,000 - $100,000 (ORBITAL VELOCITY)</option>
+                  <option value="100k-250k">$100,000 - $250,000 (INTERSTELLAR CAMPAIGN)</option>
+                  <option value="250k+">$250,000+ (DEEP SPACE DOMINANCE)</option>
+                </select>
+              </div>
+
+              <button 
+                onClick={runSimulation} 
+                disabled={simulating}
+                class="w-full bg-nasa-amber hover:bg-amber-400 text-black font-extrabold py-3 rounded text-xs tracking-wider transition-all flex justify-center items-center gap-2 glow-amber"
+              >
+                <i data-lucide="play-circle" class="w-4 h-4"></i>
+                <span>{simulating ? `COUNTDOWN T-MINUS ${countdown}...` : 'RUN FLIGHT SIMULATION'}</span>
+              </button>
+            </div>
+
+            {/* SIMULATION READOUT DISPLAY */}
+            <div class="lg:col-span-6 bg-black/70 border border-nasa-panelBorder p-6 rounded flex flex-col justify-between min-h-[320px]">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <span class="text-xs text-nasa-green font-bold">TELEMETRY DIAGNOSTIC DISPLAY</span>
+                <span class="text-[10px] text-gray-500">SIM_ENGINE_v2.4</span>
+              </div>
+
+              {simulating ? (
+                <div class="flex flex-col items-center justify-center my-auto space-y-4">
+                  <div class="text-6xl font-extrabold text-nasa-amber animate-bounce glow-amber">
+                    T-MINUS 00:0{countdown}
+                  </div>
+                  <div class="text-xs text-nasa-accent animate-pulse">
+                    IGNITING THRUSTERS // CALCULATING TRAJECTORY...
+                  </div>
+                  <div class="w-full bg-slate-800 h-2 rounded overflow-hidden">
+                    <div 
+                      class="bg-nasa-amber h-full transition-all duration-300"
+                      style={{ width: `${(5 - countdown) * 20}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ) : simResult ? (
+                <div class="space-y-4 my-auto">
+                  <div class="p-3 bg-nasa-green/10 border border-nasa-green/40 rounded text-nasa-green text-xs space-y-1">
+                    <div class="font-bold">STATUS: LAUNCH TRAJECTORY VERIFIED</div>
+                    <div>ESTIMATED ORBITAL YIELD: {simResult.velocity}</div>
+                  </div>
+
+                  <div class="space-y-2 text-xs">
+                    <div class="flex justify-between border-b border-slate-800 py-1">
+                      <span class="text-gray-400">TARGET ESCAPE VELOCITY:</span>
+                      <span class="text-white font-bold">{simResult.trajectory}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-800 py-1">
+                      <span class="text-gray-400">ESTIMATED TIMELINE:</span>
+                      <span class="text-nasa-accent font-bold">{simResult.launchTimeline}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-800 py-1">
+                      <span class="text-gray-400">RESOURCE EFFICIENCY:</span>
+                      <span class="text-nasa-green font-bold">{simResult.fuelConsumption}</span>
+                    </div>
+                  </div>
+
+                  <div class="pt-2">
+                    <div class="text-[11px] text-gray-400 font-bold mb-1">RECOMMENDED DEPLOYMENT MODULES:</div>
+                    <div class="flex flex-wrap gap-2">
+                      {simResult.recommendedModules.map((m, i) => (
+                        <span key={i} class="bg-black border border-slate-700 px-2 py-1 text-[10px] text-nasa-accent rounded">{m}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div class="text-center my-auto space-y-2 text-gray-500 text-xs">
+                  <i data-lucide="radio-tower" class="w-10 h-10 mx-auto text-slate-700"></i>
+                  <div>AWAITING SIMULATION PARAMETERS</div>
+                  <div class="text-[10px] text-gray-600">CONFIGURE VALUES ON LEFT AND HIT RUN</div>
+                </div>
+              )}
+
+              <div class="border-t border-slate-800 pt-3 text-[10px] text-gray-500 flex justify-between">
+                <span>SIMULATION ID: #{Math.floor(100000 + Math.random() * 900000)}</span>
+                <span>SIXTH SIGMA BRAND ENGINE</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // --- MODULE 04: GEMINI AI FLIGHT DIRECTOR ---
+    function AiDirectorModule() {
+      const [brandName, setBrandName] = useState('');
+      const [productDesc, setProductDesc] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [planOutput, setPlanOutput] = useState('');
+      const [errorMsg, setErrorMsg] = useState('');
+
+      const generateStrategy = async () => {
+        if (!brandName.trim()) {
+          setErrorMsg('PLEASE INPUT A BRAND NAME OR CODENAME');
+          return;
+        }
+
+        setLoading(true);
+        setErrorMsg('');
+        setPlanOutput('');
+
+        const promptText = `
+You are the Groom Lake Test Facility Flight Director for Brand Strategy at Sixth Sigma Solutions.
+Formulate a highly technical, high-impact Groom Lake-style Brand Launch Mission Operations Plan for:
+
+BRAND NAME: ${brandName}
+PRODUCT/MISSION OBJECTIVE: ${productDesc || 'General market disruption and brand launch'}
+
+Structure the response like an official Groom Lake Test Facility Mission Telemetry Manual from Sixth Sigma Solutions:
+1. T-MINUS 60 DAYS: BRAND DNA SEQUENCING (Graphic Design & Identity)
+2. T-MINUS 30 DAYS: SIGNAL INTERCEPT CAMPAIGNS (Marketing & Telemetry)
+3. T-MINUS 0 COUNTDOWN: IGNITION & STAGING (Event Command & Public Launch)
+4. POST-LAUNCH ORBITAL VERIFICATION (Analytics & Scaling)
+
+Keep the language crisp, technical, aerospace-inspired, and authoritative. Max 350 words.
+        `;
+
+        const apiKey = ""; // Runtime provided key
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        let attempt = 0;
+        const delays = [1000, 2000, 4000, 8000];
+
+        while (attempt < 5) {
+          try {
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }]
+              })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                setPlanOutput(text);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Retrying Gemini API call...', e);
+          }
+          
+          attempt++;
+          if (attempt < 5) await new Promise(r => setTimeout(r, delays[attempt - 1]));
+        }
+
+        setLoading(false);
+        setErrorMsg('SYSTEM ERROR: UNABLE TO CONTACT GEMINI TELEMETRY ORBIT. PLEASE RETRY.');
+      };
+
+      return (
+        <div class="space-y-6 font-mono">
+          <div class="border-b border-nasa-panelBorder pb-4">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="cpu" class="w-6 h-6 text-nasa-accent"></i>
+              <span>GEMINI AI FLIGHT DIRECTOR // BRAND LAUNCH ARCHITECT</span>
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">GENERATE A SIXTH SIGMA SOLUTIONS MISSION OPERATIONS MANUAL FOR YOUR BRAND</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* INPUT PANEL */}
+            <div class="lg:col-span-5 bg-nasa-panel border border-nasa-panelBorder p-6 rounded space-y-4 tech-corner">
+              <div class="text-xs font-bold text-nasa-accent border-b border-slate-800 pb-2">
+                [INPUT MISSION PARAMETERS]
+              </div>
+
+              <div>
+                <label class="text-xs text-gray-300 font-bold block mb-1">BRAND / ENTITY CODENAME *</label>
+                <input 
+                  type="text" 
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder="e.g. ASTRAEA AI / PROJECT NEBULA"
+                  class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none"
+                />
+              </div>
+
+              <div>
+                <label class="text-xs text-gray-300 font-bold block mb-1">MISSION DIRECTIVE & PRODUCT SPECS</label>
+                <textarea 
+                  rows={4}
+                  value={productDesc}
+                  onChange={(e) => setProductDesc(e.target.value)}
+                  placeholder="Describe your product, target audience, and key brand differentiator..."
+                  class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none"
+                ></textarea>
+              </div>
+
+              {errorMsg && (
+                <div class="text-xs text-nasa-red bg-nasa-red/10 border border-nasa-red/40 p-2 rounded">
+                  {errorMsg}
+                </div>
+              )}
+
+              <button 
+                onClick={generateStrategy}
+                disabled={loading}
+                class="w-full bg-nasa-accent hover:bg-cyan-300 text-black font-extrabold py-3 rounded text-xs transition-all flex justify-center items-center gap-2 glow-cyan"
+              >
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                <span>{loading ? 'COMPUTING LAUNCH TRAJECTORY...' : 'GENERATE FLIGHT MANUAL'}</span>
+              </button>
+            </div>
+
+            {/* OUTPUT TELEMETRY DISPLAY */}
+            <div class="lg:col-span-7 bg-black/80 border border-nasa-panelBorder p-6 rounded flex flex-col justify-between min-h-[400px]">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <span class="text-xs text-nasa-accent font-bold">MISSION OPERATIONS MANUAL OUTPUT</span>
+                <span class="text-[10px] text-nasa-green">MODEL: GEMINI-2.5-FLASH</span>
+              </div>
+
+              {loading ? (
+                <div class="flex flex-col items-center justify-center my-auto space-y-3">
+                  <div class="w-10 h-10 border-2 border-nasa-accent border-t-transparent rounded-full animate-spin"></div>
+                  <div class="text-xs text-nasa-accent animate-pulse">
+                    SYNTHESIZING STRATEGIC FLIGHT PLAN...
+                  </div>
+                </div>
+              ) : planOutput ? (
+                <div class="my-4 text-xs text-gray-200 leading-relaxed whitespace-pre-line font-mono overflow-y-auto max-h-[450px] pr-2 space-y-2">
+                  {planOutput}
+                </div>
+              ) : (
+                <div class="text-center my-auto space-y-2 text-gray-500 text-xs">
+                  <i data-lucide="file-text" class="w-12 h-12 mx-auto text-slate-800"></i>
+                  <div>AWAITING BRAND DIRECTIVES</div>
+                  <div class="text-[10px] text-gray-600">INPUT DETAILS ON LEFT TO GENERATE AI FLIGHT PLAN</div>
+                </div>
+              )}
+
+              <div class="border-t border-slate-800 pt-3 text-[10px] text-gray-500 flex justify-between">
+                <span>SIXTH SIGMA SOLUTIONS // GEMINI ARCHITECTURE</span>
+                <span>CONFIDENTIALITY: LEVEL 4</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // --- MODULE 05: ACTIVE DOSSIERS (PORTFOLIO) ---
+    function MissionsModule() {
+      const missions = [
+        {
+          code: 'MISSION-A101',
+          client: 'HYPERION AI PROTOCOL',
+          sector: 'ENTERPRISE AI / FINTECH',
+          year: '2026',
+          status: 'STABLE ORBIT',
+          metric: '+540% REVENUE',
+          desc: 'Complete identity DNA engineering, vector propulsion logo systems, and high-stakes launch keynote at SF Tech Command.',
+          deliverables: ['Graphic System', 'Brand Video', 'Ground Control Summit']
+        },
+        {
+          code: 'MISSION-B204',
+          client: 'ASTRAEA SPACE SYSTEMS',
+          sector: 'AEROSPACE & SATELLITE',
+          year: '2025',
+          status: 'DEPLOYED',
+          metric: '18.4M REACH',
+          desc: 'Global marketing signal intercept campaign and digital UI/UX telemetry platform for satellite orbit tracking.',
+          deliverables: ['Marketing Telemetry', 'Web Platform', '3D Motion']
+        },
+        {
+          code: 'MISSION-C309',
+          client: 'NEXUS AUTOMATION',
+          sector: 'ROBOTICS & INDUSTRIAL',
+          year: '2025',
+          status: 'SUCCESSFUL',
+          metric: '$42M SERIES-B',
+          desc: 'Rebranding launch staging, physical booth engineering for Hanover Expo, and investor presentation telemetry decks.',
+          deliverables: ['Event Staging', 'Investor Deck', 'Brand Guidelines']
+        }
+      ];
+
+      return (
+        <div class="space-y-6 font-mono">
+          <div class="border-b border-nasa-panelBorder pb-4">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="folder-kanban" class="w-6 h-6 text-nasa-green"></i>
+              <span>ACTIVE MISSION DOSSIERS // DEPLOYED BRANDS</span>
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">ARCHIVED AND LIVE BRAND LAUNCH ARCHITECTURES</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {missions.map((m, idx) => (
+              <div key={idx} class="bg-nasa-panel border border-nasa-panelBorder hover:border-nasa-accent/50 rounded p-5 space-y-4 transition-all">
+                <div class="flex justify-between items-center text-[10px] text-gray-400 border-b border-slate-800 pb-2">
+                  <span>{m.code}</span>
+                  <span class="text-nasa-green font-bold">{m.status}</span>
+                </div>
+
+                <div>
+                  <h3 class="text-base font-bold text-white">{m.client}</h3>
+                  <div class="text-[11px] text-nasa-accent">{m.sector}</div>
+                </div>
+
+                <p class="text-xs text-gray-300 leading-relaxed">
+                  {m.desc}
+                </p>
+
+                <div class="bg-black/60 p-3 rounded border border-slate-800 flex justify-between items-center">
+                  <span class="text-[10px] text-gray-400">IMPACT METRIC:</span>
+                  <span class="text-sm font-bold text-nasa-green glow-green">{m.metric}</span>
+                </div>
+
+                <div class="flex flex-wrap gap-1 pt-1">
+                  {m.deliverables.map((d, i) => (
+                    <span key={i} class="text-[9px] bg-slate-800 text-gray-300 px-2 py-0.5 rounded">{d}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // --- MODULE 06: EVENT COMMAND CENTER ---
+    function EventCommandModule() {
+      return (
+        <div class="space-y-6 font-mono">
+          <div class="border-b border-nasa-panelBorder pb-4">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+              <i data-lucide="radio" class="w-6 h-6 text-nasa-amber"></i>
+              <span>EVENT GROUND CONTROL // EXPERIENTIAL STAGING</span>
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">HIGH-STAKES PHYSICAL AND HYBRID EVENT COMMAND ENGINEERING</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div class="lg:col-span-7 space-y-4">
+              <div class="text-xs text-nasa-amber font-bold">[MISSION-CRITICAL EVENT HOSTING]</div>
+              <h3 class="text-2xl font-bold text-white">STAGE YOUR NEXT BRAND IGNITION WITH COMMAND ROOM PRECISION.</h3>
+              <p class="text-xs text-gray-300 leading-relaxed">
+                Whether launching a landmark keynote, orchestrating an exclusive VIP brand summit, or engineering an immersive product reveal, our Sixth Sigma Solutions Ground Control team delivers flawless audio visual execution, spatial lighting design, and live-stream telemetry.
+              </p>
+
+              <div class="grid grid-cols-2 gap-4 pt-2">
+                <div class="bg-black/50 p-3 border border-slate-800 rounded">
+                  <div class="text-xs font-bold text-nasa-accent">PHYSICAL STAGING</div>
+                  <div class="text-[11px] text-gray-400 mt-1">Custom LED walls, stage architecture, control consoles.</div>
+                </div>
+                <div class="bg-black/50 p-3 border border-slate-800 rounded">
+                  <div class="text-xs font-bold text-nasa-green">HYBRID UPLINK</div>
+                  <div class="text-[11px] text-gray-400 mt-1">Ultra low-latency global broadcast flight control.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 bg-nasa-panel border border-nasa-panelBorder p-5 rounded space-y-3 tech-corner">
+              <div class="text-xs font-bold text-nasa-accent border-b border-slate-800 pb-2">
+                EVENT SPECIFICATIONS CHECKLIST
+              </div>
+              <ul class="space-y-2 text-xs text-gray-300">
+                <li class="flex items-center gap-2"><span class="text-nasa-green">✓</span> 4K Broadcast-Grade Multi-Cam Switching</li>
+                <li class="flex items-center gap-2"><span class="text-nasa-green">✓</span> Real-Time Audience Telemetry & Polls</li>
+                <li class="flex items-center gap-2"><span class="text-nasa-green">✓</span> VIP Guest Access & Encrypted Credentials</li>
+                <li class="flex items-center gap-2"><span class="text-nasa-green">✓</span> Custom Holographic & Lighting Sequences</li>
+                <li class="flex items-center gap-2"><span class="text-nasa-green">✓</span> Post-Event Analytics Flight Report</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- MODULE 07: UPLINK TRANSMISSION (CONTACT) ---
+    function UplinkModule() {
+      const [submitted, setSubmitted] = useState(false);
+      const [transCode, setTransCode] = useState('');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const code = 'UPLINK-' + Math.floor(100000 + Math.random() * 900000);
+        setTransCode(code);
+        setSubmitted(true);
+      };
+
+      return (
+        <div class="space-y-6 font-mono max-w-3xl mx-auto">
+          <div class="border-b border-nasa-panelBorder pb-4 text-center">
+            <h2 class="text-2xl font-bold text-white flex justify-center items-center gap-2">
+              <i data-lucide="send" class="w-6 h-6 text-nasa-accent"></i>
+              <span>TRANSMIT MISSION BRIEF // INITIATE UPLINK</span>
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">TRANSMIT YOUR BRAND PARAMETERS DIRECTLY TO SIXTH SIGMA SOLUTIONS GROUND CONTROL</p>
+          </div>
+
+          {submitted ? (
+            <div class="bg-nasa-panel border border-nasa-green p-8 rounded text-center space-y-4 glow-green">
+              <i data-lucide="check-circle-2" class="w-12 h-12 text-nasa-green mx-auto"></i>
+              <h3 class="text-xl font-bold text-white">TRANSMISSION RECEIVED BY GROUND CONTROL</h3>
+              <p class="text-xs text-gray-300">
+                Your mission brief has been logged under registry code: <span class="text-nasa-accent font-bold">{transCode}</span>
+              </p>
+              <div class="text-[11px] text-gray-400">
+                A Sixth Sigma Flight Director will establish Comms within 24 UTC Hours.
+              </div>
+              <button 
+                onClick={() => setSubmitted(false)}
+                class="bg-nasa-accent text-black font-bold px-4 py-2 rounded text-xs"
+              >
+                TRANSMIT NEW BRIEF
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} class="bg-nasa-panel border border-nasa-panelBorder p-6 rounded space-y-4 tech-corner">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-gray-300 font-bold block mb-1">FLIGHT DIRECTOR / YOUR NAME *</label>
+                  <input required type="text" placeholder="e.g. Cmdr. Sarah Connor" class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none" />
+                </div>
+                <div>
+                  <label class="text-xs text-gray-300 font-bold block mb-1">COMMS CHANNEL / EMAIL *</label>
+                  <input required type="email" placeholder="sarah@brand.com" class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-gray-300 font-bold block mb-1">ORGANIZATION / BRAND CODENAME</label>
+                  <input type="text" placeholder="e.g. Apex Dynamics" class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none" />
+                </div>
+                <div>
+                  <label class="text-xs text-gray-300 font-bold block mb-1">PRIMARY MODULE REQUIRED</label>
+                  <select class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none">
+                    <option>ALL MODULES (FULL LAUNCH)</option>
+                    <option>MOD-01 Graphic & Identity DNA</option>
+                    <option>MOD-02 Strategic Marketing</option>
+                    <option>MOD-04 Event Ground Control</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-xs text-gray-300 font-bold block mb-1">MISSION DIRECTIVES & TARGET ORBIT *</label>
+                <textarea required rows={4} placeholder="Outline your launch goals, target timeline, and primary directives..." class="w-full bg-black/80 border border-slate-700 rounded px-3 py-2 text-xs text-nasa-accent focus:border-nasa-accent outline-none"></textarea>
+              </div>
+
+              <button 
+                type="submit"
+                class="w-full bg-nasa-accent hover:bg-cyan-300 text-black font-extrabold py-3 rounded text-xs transition-all flex justify-center items-center gap-2 glow-cyan"
+              >
+                <i data-lucide="radio" class="w-4 h-4"></i>
+                <span>TRANSMIT BRIEF TO GROUND CONTROL</span>
+              </button>
+            </form>
+          )}
+        </div>
+      );
+    }
+
+    // Render React Application
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+
+    // Initialize Lucide Icons after render
+    setTimeout(() => {
+      if (window.lucide) window.lucide.createIcons();
+    }, 100);
+  </script>
+</body>
+</html>
